@@ -19,7 +19,6 @@
 <template>
   <!-- actions or process on container -->
   <el-dropdown
-    v-if="!isEmptyValue(actionsManager)"
     :hide-on-click="true"
     :size="size"
     split-button
@@ -142,10 +141,13 @@
             </div>
           </div>
         </el-dropdown-item>
+
         <!-- References Menu -->
         <menu-references
+          v-if="!isEmptyValue(referencesManager)"
+          :parent-uuid="parentUuid"
+          :container-uuid="containerUuid"
           :size="size"
-          :actions-manager="actionsManager"
           :references-manager="referencesManager"
         />
       </el-scrollbar>

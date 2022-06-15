@@ -19,8 +19,8 @@
 <template>
   <!-- records references only window -->
   <el-dropdown-item
-    v-if="!isDisabledMenu"
     key="withoutActions"
+    :disabled="isDisabledMenu"
     style="min-height: 26px"
     :divided="true"
   >
@@ -78,13 +78,25 @@
 <script>
 import { computed, defineComponent, ref, watch } from '@vue/composition-api'
 
+import store from '@/store'
+
+// utils and helper methods
 import { zoomIn } from '@/utils/ADempiere/coreUtils.js'
+import { isEmptyValue } from '@/utils/ADempiere/valueUtils'
 import Filters from '@/utils/ADempiere/filters.js'
 
 export default defineComponent({
   name: 'MenuReferences',
 
   props: {
+    parentUuid: {
+      type: String,
+      default: undefined
+    },
+    containerUuid: {
+      type: String,
+      required: true
+    },
     size: {
       type: String,
       default: ''
@@ -92,18 +104,10 @@ export default defineComponent({
     referencesManager: {
       type: Object,
       required: true
-    },
-    actionsManager: {
-      type: Object,
-      default: () => {},
-      required: true
     }
   },
 
-  setup(props, { root, parent }) {
-    const {
-      parentUuid
-    } = props.actionsManager
+  setup(props) {
     const {
       getTableName
     } = props.referencesManager
@@ -112,19 +116,17 @@ export default defineComponent({
     const referencesList = ref([])
 
     const recordUuid = computed(() => {
-      const { action } = root.$route.query
-      return action
+      return store.getters.getUuidOfContainer(props.containerUuid)
     })
 
     const isWithRecord = computed(() => {
-      // TODO: Add validate uuid record with route
-      return !root.isEmptyValue(recordUuid.value) &&
+      return !isEmptyValue(recordUuid.value) &&
         recordUuid.value !== 'create-new'
     })
 
     // is container manage references
     const isReferecesContent = computed(() => {
-      if (!root.isEmptyValue(props.referencesManager)) {
+      if (!isEmptyValue(props.referencesManager)) {
         return true
       }
       return false
@@ -138,8 +140,8 @@ export default defineComponent({
 
     const getterReferences = computed(() => {
       if (isReferecesContent.value) {
-        return root.$store.getters.getStoredReferences({
-          windowUuid: parentUuid,
+        return store.getters.getStoredReferences({
+          windowUuid: props.parentUuid,
           tableName: getTableName(),
           recordUuid: recordUuid.value
         })
@@ -149,11 +151,11 @@ export default defineComponent({
     })
 
     const openReference = (referenceElement) => {
-      if (isDisabledMenu.value || root.isEmptyValue(referenceElement)) {
+      if (isDisabledMenu.value || isEmptyValue(referenceElement)) {
         return
       }
 
-      if (!root.isEmptyValue(referenceElement.windowUuid)) {
+      if (!isEmptyValue(referenceElement.windowUuid)) {
         const pairsValues = Filters.newInstance()
           .setFiltersWithSQL(referenceElement.whereClause)
           .getAsArray()
@@ -171,13 +173,13 @@ export default defineComponent({
 
     const getReferences = () => {
       const references = getterReferences.value
-      if (!root.isEmptyValue(references)) {
+      if (!isEmptyValue(references)) {
         referencesList.value = references.referencesList
       } else {
         isLoadingReferences.value = true
 
-        root.$store.dispatch('getReferencesFromServer', {
-          parentUuid,
+        store.dispatch('getReferencesFromServer', {
+          parentUuid: props.parentUuid,
           tableName: getTableName(),
           recordUuid: recordUuid.value
         })
