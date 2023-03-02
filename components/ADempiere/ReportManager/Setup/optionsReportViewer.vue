@@ -25,7 +25,7 @@
     </div>
 
     <el-collapse v-model="activeCollapse">
-      <el-collapse-item name="1">
+      <el-collapse-item name="report-preferences">
         <template slot="title">
           <b style="font-size: 18px">
             {{ $t('report.preference') }}
@@ -46,11 +46,11 @@
                     style="display: grid;"
                   >
                     <el-select
-                      v-model="reportAsPrintFormatValue"
+                      v-model="currentPrintFormatUuid"
                       style="display: contents;"
                     >
                       <el-option
-                        v-for="(item, key) in reportAsPrintFormat.childs"
+                        v-for="(item, key) in reportPrintFormatsList"
                         :key="key"
                         :label="item.name"
                         :value="item.printFormatUuid"
@@ -64,11 +64,11 @@
                     style="display: grid;"
                   >
                     <el-select
-                      v-model="reportAsViewValue"
+                      v-model="currentReportViewUuid"
                       style="display: contents;"
                     >
                       <el-option
-                        v-for="(item, key) in reportAsView.childs"
+                        v-for="(item, key) in reportViewsList"
                         :key="key"
                         :label="item.name"
                         :value="item.reportViewUuid"
@@ -82,11 +82,11 @@
                     style="display: grid;"
                   >
                     <el-select
-                      v-model="reportTypeFormatValue"
+                      v-model="currentReportType"
                       style="display: contents;"
                     >
                       <el-option
-                        v-for="(item, key) in reportTypeFormat.childs"
+                        v-for="(item, key) in reportFormatTypesList"
                         :key="key"
                         :label="item.name"
                         :value="item.type"
@@ -99,7 +99,7 @@
                     :label="$t('report.summary')"
                     style="display: grid;"
                   >
-                    <el-switch v-model="value1" />
+                    <el-switch v-model="isSummaryReport" />
                   </el-form-item>
                 </el-col>
               </el-row>
@@ -109,7 +109,7 @@
       </el-collapse-item>
 
       <!-- report parameters -->
-      <el-collapse-item name="2">
+      <el-collapse-item name="report-parameters">
         <template slot="title">
           <b style="font-size: 18px">
             {{ $t('actionMenu.changeParameters') }}
@@ -171,6 +171,7 @@ import lang from '@/lang'
 import CollapseCriteria from '@theme/components/ADempiere/CollapseCriteria/index.vue'
 
 // Utils and Helper Methods
+import useOptionsReport from './useOptionsReport.js'
 import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
 import { showNotification } from '@/utils/ADempiere/notification'
 
@@ -197,76 +198,45 @@ export default defineComponent({
   },
 
   setup(props, { root }) {
+    const {
+      reportFormatTypesList,
+      currentReportType,
+      reportPrintFormatsList,
+      currentPrintFormatUuid,
+      reportViewsList,
+      currentReportViewUuid
+    } = useOptionsReport({
+      containerUuid: props.containerUuid
+    })
+
     /**
      * Ref
-     * @reportAsViewValue - @params - {String} - (Value the Report Viwer)
-     * @reportAsPrintFormatValue - @params - {String} - (Value the Print Format)
-     * @reportTypeFormatValue - @params - {String} - (Value the Report Type)
      * @activeCollapse - @params - {Array} - (Nodes activating collapse *Note: Cannot be used if the node is accordion mode*)
      */
-    const reportAsViewValue = ref('')
-    const reportAsPrintFormatValue = ref('')
-    const reportTypeFormatValue = ref('')
-    const activeCollapse = ref(['1', '2'])
-    const value1 = ref(true)
+    const activeCollapse = ref(['report-preferences', 'report-parameters'])
+    const isSummaryReport = ref(false)
 
     /**
      * Computed
-     * @reportAsView - List the options the Report Viwer
-     * @reportAsPrintFormat - List the options the Print Format
-     * @reportAsView - List the options the Report Type
      * @storedPanelReport - Attribute the Panel Report
      * @defaultParams - Parameters with which the report was executed
      * @isShowSetupReport - is to show the configuration report
      * @containerManagerReportViwer - Container Manager the Report Viwer
      * @componentRender - Import the Panel Definitions component
      */
-    const reportAsView = computed(() => {
-      const options = store.getters.getStoredActionsMenu({
-        containerUuid: props.containerUuid
-      }).find(repoortOptions => repoortOptions.actionName === 'runReportAsView')
-      if (isEmptyValue(options)) {
-        return {
-          childs: []
-        }
-      }
-      return options
-    })
-
-    const reportAsPrintFormat = computed(() => {
-      const options = store.getters.getStoredActionsMenu({
-        containerUuid: props.containerUuid
-      }).find(repoortOptions => repoortOptions.actionName === 'runReportAsPrintFormat')
-      if (isEmptyValue(options)) {
-        return {
-          childs: []
-        }
-      }
-      return options
-    })
-
     const tableName = computed(() => {
       const { tableName } = store.getters.getReportOutput(root.$route.params.instanceUuid)
       if (!isEmptyValue(tableName)) {
         return tableName
       }
-      const currentPrintFormat = reportAsPrintFormat.value.childs.find(report => report.printFormatUuid === reportAsPrintFormatValue.value)
-      if (isEmptyValue(currentPrintFormat)) {
+      if (isEmptyValue(reportPrintFormatsList.value)) {
         return ''
       }
-      return currentPrintFormat.tableName
-    })
-
-    const reportTypeFormat = computed(() => {
-      const options = store.getters.getStoredActionsMenu({
-        containerUuid: props.containerUuid
-      }).find(repoortOptions => repoortOptions.actionName === 'runReportAs')
-      if (isEmptyValue(options)) {
-        return {
-          childs: []
-        }
+      const currentPrintFormat = reportPrintFormatsList.value.find(report => report.printFormatUuid === currentPrintFormatUuid.value)
+      if (!isEmptyValue(currentPrintFormat)) {
+        return currentPrintFormat.tableName
       }
-      return options
+      return reportPrintFormatsList.value.at().tableName
     })
 
     const storedPanelReport = computed(() => {
@@ -279,9 +249,10 @@ export default defineComponent({
       return store.getters.getReportOutput(root.$route.params.instanceUuid)
     })
 
-    const isShowSetupReport = computed(() => {
-      return store.getters.getShowPanelConfig({ containerUuid: props.containerUuid })
-    })
+    // const isShowSetupReport = computed(() => {
+    //   return store.getters.getShowPanelConfig({ containerUuid: props.containerUuid })
+    // })
+
     const containerManagerReportViwer = computed(() => {
       const modalDialogStored = storedPanelReport.value
       if (!isEmptyValue(modalDialogStored) && !isEmptyValue(modalDialogStored.containerManager)) {
@@ -305,49 +276,19 @@ export default defineComponent({
 
     /**
      * Methods
-     * @updatePrintFormat - @params {String} - Actualizar en el store el parametro Print Format
-     * @updateReportView - @params {String} - Actualizar en el store el parametro Report Viwer
-     * @updateReportType - @params {String} - Actualizar en el store el parametro Report Type
      * @handleClose - Close Panel and Clean Value
      * @runReport - Run Report and Close Panel
      * @runReport - @params {Object} - Set in the field the parameters with which the report was run
      */
-
-    function updatePrintFormat(value) {
-      store.commit('setReportGenerated', {
-        containerUuid: props.containerUuid,
-        printFormatUuid: value,
-        reportType: reportTypeFormatValue.value,
-        reportViewUuid: reportAsViewValue.value
-      })
-    }
-
-    function updateReportView(value) {
-      store.commit('setReportGenerated', {
-        containerUuid: props.containerUuid,
-        printFormatUuid: reportAsPrintFormatValue.value,
-        reportType: reportTypeFormatValue.value,
-        reportViewUuid: value
-      })
-    }
-
-    function updateReportType(value) {
-      store.commit('setReportGenerated', {
-        containerUuid: props.containerUuid,
-        reportViewUuid: reportAsViewValue.value,
-        printFormatUuid: reportAsPrintFormatValue.value,
-        reportType: value
-      })
-    }
-
     function handleClose() {
       store.commit('setShowPanelConfig', {
         containerUuid: props.containerUuid,
         value: false
       })
-      reportAsViewValue.value = ''
-      reportAsPrintFormatValue.value = ''
-      reportTypeFormatValue.value = ''
+      currentReportViewUuid.value = ''
+      currentPrintFormatUuid.value = ''
+      currentReportType.value = ''
+      isSummaryReport.value = false
     }
 
     function runReport() {
@@ -366,7 +307,7 @@ export default defineComponent({
       store.dispatch('buildReport', {
         containerUuid: props.containerUuid,
         instanceUuid: root.$route.params.instanceUuid,
-        isSummary: value1.value,
+        isSummary: isSummaryReport.value,
         tableName: tableName.value,
         parametersList: reportOutputParams
       })
@@ -401,92 +342,67 @@ export default defineComponent({
 
     function defaultReport(report) {
       const { reportViewUuid, printFormatUuid, reportType } = report
-      reportAsViewValue.value = reportViewUuid
-      reportAsPrintFormatValue.value = printFormatUuid
-      reportTypeFormatValue.value = reportType
+      currentReportViewUuid.value = reportViewUuid
+      currentPrintFormatUuid.value = printFormatUuid
+      currentReportType.value = reportType
+      isSummaryReport.value = false
+
       store.commit('setReportGenerated', {
         containerUuid: props.containerUuid,
         reportViewUuid,
         printFormatUuid,
-        reportType
+        reportType,
+        isSummary: isSummaryReport.value
       })
     }
 
     function clearParameters() {
+      defaultReport(defaultParams.value)
+
       store.dispatch('setReportDefaultValues', {
         containerUuid: props.containerUuid
       })
     }
 
-    /**
-     * Watch
-     */
+    // watch(isShowSetupReport, (newValue) => {
+    //   if (newValue) {
+    //     defaultReport(defaultParams.value)
+    //   }
+    // })
 
-    watch(reportAsViewValue, (newValue) => {
-      updateReportView(newValue)
-    })
-
-    watch(reportAsPrintFormatValue, (newValue) => {
-      updatePrintFormat(newValue)
-    })
-
-    watch(reportTypeFormatValue, (newValue) => {
-      updateReportType(newValue)
-    })
-
-    watch(isShowSetupReport, (newValue) => {
-      if (newValue) {
-        defaultReport(defaultParams.value)
-      }
-    })
-
-    watch(value1, (newValue) => {
-      if (newValue) {
+    watch(isSummaryReport, (newValue, oldValue) => {
+      if (newValue !== oldValue) {
         store.commit('setReportGenerated', {
           containerUuid: props.containerUuid,
-          printFormatUuid: reportAsPrintFormatValue.value,
-          reportType: reportTypeFormatValue.value,
-          reportViewUuid: reportAsPrintFormatValue.value,
+          printFormatUuid: currentPrintFormatUuid.value,
+          reportType: currentReportType.value,
+          reportViewUuid: currentReportViewUuid.value,
           isSummary: newValue
         })
       }
     })
 
-    /**
-     * Run Methods As soon as I load the panel
-     */
-
-    updatePrintFormat(reportTypeFormatValue.value)
-
-    updateReportView(reportAsViewValue.value)
-
-    updateReportType(reportTypeFormatValue.value)
-
-    defaultReport(defaultParams.value)
-
     return {
       // Ref
-      reportAsViewValue,
-      reportAsPrintFormatValue,
-      reportTypeFormatValue,
       activeCollapse,
-      value1,
+      isSummaryReport,
+      // Computeds
+      reportFormatTypesList,
+      currentReportType,
+      reportPrintFormatsList,
+      currentPrintFormatUuid,
+      reportViewsList,
+      currentReportViewUuid,
       // Components
-      reportAsView,
-      reportAsPrintFormat,
-      reportTypeFormat,
       tableName,
       storedPanelReport,
       defaultParams,
-      isShowSetupReport,
+      // isShowSetupReport,
       containerManagerReportViwer,
       componentRender,
       findTagViwer,
       // methods
       clearParameters,
-      updatePrintFormat,
-      updateReportView,
-      updateReportType,
       handleClose,
       runReport,
       defaultReport

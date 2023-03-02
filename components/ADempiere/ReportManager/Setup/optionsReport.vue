@@ -37,11 +37,11 @@
               style="display: grid;"
             >
               <el-select
-                v-model="reportAsPrintFormatValue"
+                v-model="currentPrintFormatUuid"
                 style="display: contents;"
               >
                 <el-option
-                  v-for="(item, key) in reportAsPrintFormat.childs"
+                  v-for="(item, key) in reportPrintFormatsList"
                   :key="key"
                   :label="item.name"
                   :value="item.printFormatUuid"
@@ -55,11 +55,11 @@
               style="display: grid;"
             >
               <el-select
-                v-model="reportAsViewValue"
+                v-model="currentReportViewUuid"
                 style="display: contents;"
               >
                 <el-option
-                  v-for="(item, key) in reportAsView.childs"
+                  v-for="(item, key) in reportViewsList"
                   :key="key"
                   :label="item.name"
                   :value="item.reportViewUuid"
@@ -73,11 +73,11 @@
               style="display: grid;"
             >
               <el-select
-                v-model="reportTypeFormatValue"
+                v-model="currentReportType"
                 style="display: contents;"
               >
                 <el-option
-                  v-for="(item, key) in reportTypeFormat.childs"
+                  v-for="(item, key) in reportFormatTypesList"
                   :key="key"
                   :label="item.name"
                   :value="item.type"
@@ -90,11 +90,7 @@
     </div>
 
     <el-row
-      style="
-        position: absolute;
-        bottom: 1%;
-        right: 2%;
-      "
+      style="position: absolute; bottom: 1%; right: 2%;"
     >
       <el-col :span="24">
         <samp class="report-setup-footer">
@@ -117,22 +113,18 @@
 </template>
 
 <script>
-import { defineComponent, computed, ref, watch } from '@vue/composition-api'
+import { defineComponent } from '@vue/composition-api'
 
 import store from '@/store'
 
-// Components and Mixins
-import CollapseCriteria from '@theme/components/ADempiere/CollapseCriteria/index.vue'
+// Constants
+import { DEFAULT_REPORT_TYPE } from '@/utils/ADempiere/dictionary/report'
 
 // Utils and Helper Methods
-import { isEmptyValue } from '@/utils/ADempiere/valueUtils.js'
+import useOptionsReport from './useOptionsReport.js'
 
 export default defineComponent({
   name: 'OptionsReport',
-
-  components: {
-    CollapseCriteria
-  },
 
   props: {
     containerUuid: {
@@ -150,97 +142,27 @@ export default defineComponent({
   },
 
   setup(props) {
-    /**
-     * Ref
-     */
-    const reportAsViewValue = ref('')
-    const reportAsPrintFormatValue = ref('')
-    const reportTypeFormatValue = ref('')
-    const attributes = computed(() => {
-      return store.getters.getConfigReport({
-        containerUuid: props.containerUuid,
-        columnName: 'reportType'
-      })
+    const {
+      reportFormatTypesList,
+      currentReportType,
+      reportPrintFormatsList,
+      defaulPrintFormat,
+      currentPrintFormatUuid,
+      reportViewsList,
+      defaultReportView,
+      currentReportViewUuid
+    } = useOptionsReport({
+      containerUuid: props.containerUuid
     })
-    const reportAsView = computed(() => {
-      const options = store.getters.getStoredActionsMenu({
-        containerUuid: props.containerUuid
-      }).find(repoortOptions => repoortOptions.actionName === 'runReportAsView')
-      if (isEmptyValue(options)) {
-        return {
-          childs: []
-        }
-      }
-      return options
-    })
-
-    const reportAsPrintFormat = computed(() => {
-      const options = store.getters.getStoredActionsMenu({
-        containerUuid: props.containerUuid
-      }).find(repoortOptions => repoortOptions.actionName === 'runReportAsPrintFormat')
-      if (isEmptyValue(options)) {
-        return {
-          childs: []
-        }
-      }
-      return options
-    })
-
-    const reportTypeFormat = computed(() => {
-      const options = store.getters.getStoredActionsMenu({
-        containerUuid: props.containerUuid
-      }).find(repoortOptions => repoortOptions.actionName === 'runReportAs')
-      if (isEmptyValue(options)) {
-        return {
-          childs: []
-        }
-      }
-      return options
-    })
-    const icon = computed(() => {
-      if (show2.value) {
-        return 'el-icon-arrow-down'
-      }
-      return 'el-icon-arrow-right'
-    })
-    const epale = ref('')
-    const show2 = ref(false)
-
-    function updatePrintFormat(value) {
-      store.commit('setReportGenerated', {
-        containerUuid: props.containerUuid,
-        printFormatUuid: value,
-        reportType: reportTypeFormatValue.value,
-        reportViewUuid: reportAsViewValue.value
-      })
-    }
-
-    function updateReportView(value) {
-      store.commit('setReportGenerated', {
-        containerUuid: props.containerUuid,
-        printFormatUuid: reportAsPrintFormatValue.value,
-        reportType: reportTypeFormatValue.value,
-        reportViewUuid: value
-      })
-    }
-
-    function updateReportType(value) {
-      store.commit('setReportGenerated', {
-        containerUuid: props.containerUuid,
-        reportViewUuid: reportAsViewValue.value,
-        printFormatUuid: reportAsPrintFormatValue.value,
-        reportType: value
-      })
-    }
 
     function handleClose() {
       store.commit('setShowPanelConfig', {
         containerUuid: props.containerUuid,
         value: false
       })
-      reportAsViewValue.value = ''
-      reportAsPrintFormatValue.value = ''
-      reportTypeFormatValue.value = ''
+      currentReportViewUuid.value = defaultReportView.value.reportViewUuid
+      currentPrintFormatUuid.value = defaulPrintFormat.value.printFormatUuid
+      currentReportType.value = DEFAULT_REPORT_TYPE
     }
 
     function runReport() {
@@ -254,37 +176,14 @@ export default defineComponent({
       })
     }
 
-    watch(reportAsViewValue, (newValue) => {
-      updateReportView(newValue)
-    })
-
-    watch(reportAsPrintFormatValue, (newValue) => {
-      updatePrintFormat(newValue)
-    })
-
-    watch(reportTypeFormatValue, (newValue) => {
-      updateReportType(newValue)
-    })
-
-    updatePrintFormat(reportTypeFormatValue.value)
-
-    updateReportView(reportAsViewValue.value)
-
-    updateReportType(reportTypeFormatValue.value)
-
     return {
       // Ref
-      reportAsViewValue,
-      reportAsPrintFormatValue,
-      reportTypeFormatValue,
-      attributes,
-      icon,
-      epale,
-      reportAsView,
-      reportAsPrintFormat,
-      reportTypeFormat,
-      updatePrintFormat,
-      show2,
+      reportViewsList,
+      currentReportType,
+      reportPrintFormatsList,
+      currentPrintFormatUuid,
+      reportFormatTypesList,
+      currentReportViewUuid,
       // methods
       handleClose,
       runReport
