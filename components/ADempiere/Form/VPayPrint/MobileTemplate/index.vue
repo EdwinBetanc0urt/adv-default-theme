@@ -1,6 +1,6 @@
 <!--
  ADempiere-Vue (Frontend) for ADempiere ERP & CRM Smart Business Solution
- Copyright (C) 2018-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
+ Copyright (C) 2017-Present E.R.P. Consultores y Asociados, C.A. www.erpya.com
  Contributor(s): Edwin Betancourt EdwinBetanc0urt@outlook.com https://github.com/EdwinBetanc0urt
  This program is free software: you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -17,46 +17,18 @@
 -->
 
 <template>
-  <el-row style="padding-top: 25px;padding-left: 10px;padding-right: 10px;">
-    <component
-      :is="templateDevice"
-      :metadata="metadata"
-    />
-  </el-row>
+  <div>
+    asd
+  </div>
 </template>
 
 <script>
-import { defineComponent, computed } from '@vue/composition-api'
-
-import store from '@/store'
+import { defineComponent } from '@vue/composition-api'
 
 export default defineComponent({
-  name: 'VPayPrint',
-
-  props: {
-    metadata: {
-      type: Object,
-      default: () => {
-        return {}
-      }
-    }
-  },
+  name: 'MobileTemplate',
 
   setup() {
-    const isMobile = computed(() => {
-      return store.state.app.device === 'mobile'
-    })
-
-    const templateDevice = computed(() => {
-      if (isMobile.value) {
-        return () => import('@theme/components/ADempiere/Form/VPayPrint/MobileTemplate')
-      }
-      return () => import('@theme/components/ADempiere/Form/VPayPrint/DesktopTemplate')
-    })
-
-    return {
-      templateDevice
-    }
   }
 })
 </script>
